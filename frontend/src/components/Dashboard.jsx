@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Battery, Activity, Zap, MapPin, Signal, Radio, Navigation } from 'lucide-react';
 import TelemetryMap from './TelemetryMap';
+import VideoFeed from './VideoFeed'; // <-- 1. Import the Video Feed
 
 export default function Dashboard() {
   const [telemetry, setTelemetry] = useState({
@@ -15,14 +16,7 @@ export default function Dashboard() {
     signal: 100
   });
 
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080');
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setTelemetry(prev => ({ ...prev, ...data }));
-    };
-    return () => ws.close();
-  }, []);
+  // ... (Keep your existing WebSocket useEffect here) ...
 
   const getBatteryColor = (level) => {
     if (level > 50) return 'text-emerald-400';
@@ -31,7 +25,7 @@ export default function Dashboard() {
   };
 
   const headerStyle = {
-    // Gradient fades to transparent by 60% to let the drone on the right be fully visible
+    // Your original beautiful fading gradient
     backgroundImage: `linear-gradient(to right, rgba(15, 23, 42, 1) 0%, rgba(15, 23, 42, 0.8) 30%, rgba(15, 23, 42, 0) 70%), url('https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&q=80&w=2000')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center 35%', 
@@ -40,7 +34,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 md:px-8 py-8 font-sans w-full overflow-x-hidden">
       
-      {/* CINEMATIC HERO HEADER */}
+      {/* 1. RESTORED CINEMATIC HERO HEADER */}
       <header 
         style={headerStyle} 
         className="relative overflow-hidden rounded-[2.5rem] px-12 py-48 mb-10 border border-slate-800 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
@@ -79,7 +73,19 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* GRID DATA SECTION */}
+      {/* 2. NEW DEDICATED FPV VIDEO SECTION */}
+      {/* We give it a massive 500px height so the optics are crystal clear */}
+      <div className="mb-10 w-full h-[500px] bg-slate-900 rounded-[2.5rem] p-2 border border-slate-800 shadow-2xl relative">
+        {/* Decorative corner accents for that military/industrial feel */}
+        <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-slate-500 z-10 pointer-events-none rounded-tl-lg"></div>
+        <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-slate-500 z-10 pointer-events-none rounded-tr-lg"></div>
+        <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-slate-500 z-10 pointer-events-none rounded-bl-lg"></div>
+        <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-slate-500 z-10 pointer-events-none rounded-br-lg"></div>
+        
+        <VideoFeed />
+      </div>
+
+      {/* 3. GRID DATA SECTION */}
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
         
         {/* Power Card */}
@@ -139,7 +145,7 @@ export default function Dashboard() {
 
         {/* FULL WIDTH MAP */}
         <div className="bg-slate-900 p-3 rounded-[2.5rem] shadow-2xl border border-slate-800 md:col-span-3 lg:col-span-4 h-[600px] relative overflow-hidden">
-          {/* Coordinates floating on the RIGHT to avoid Zoom controls */}
+          {/* Coordinates floating on the RIGHT */}
           <div className="absolute top-8 right-8 z-20 bg-slate-950/90 backdrop-blur-2xl p-5 rounded-2xl border border-white/10 shadow-2xl pointer-events-none min-w-[200px]">
              <div className="flex items-center gap-4">
                 <div className="bg-red-500/20 p-3 rounded-xl">
@@ -164,7 +170,7 @@ export default function Dashboard() {
       
       <footer className="mt-12 text-center">
         <p className="text-slate-600 text-[10px] uppercase tracking-[0.5em] font-bold">
-          &copy; 2026 Athithya Arunakirinathan — Autonomous Systems Division
+          
         </p>
       </footer>
     </div>

@@ -19,25 +19,45 @@ splitter.pipe(parser);
 parser.on('data', (packet) => {
     let telemetryData = {};
 
-    // Parse Global Position (ID 33)
-    if (packet.header.msgid === 33) {
-        telemetryData = {
-            lat: packet.payload.readInt32LE(0) / 1e7,
-            lon: packet.payload.readInt32LE(4) / 1e7,
-            alt: packet.payload.readInt32LE(8) / 1000,
-            speed: Math.sqrt(
-                Math.pow(packet.payload.readInt16LE(14), 2) + 
-                Math.pow(packet.payload.readInt16LE(16), 2)
-            ) / 100 // Calculate 2D ground speed from vx and vy
-        };
-    }
-    
-    // Parse System Status / Battery (ID 1)
-    if (packet.header.msgid === 1) {
-        telemetryData = {
-            battery: packet.payload.readInt8(14),
-            voltage: packet.payload.readUInt16LE(10) / 1000
-        };
+    try {
+        const payload = packet.payload;
+
+        // ID 33: GLOBAL_POSITION_INT (GPS Coordinates)
+        if (packet.header.msgid === 33 && payload.length >= 12) {
+            telemetryData.lat = payload.readInt32LE(4) / 1e7; // Latitude starts at byte 4
+            telemetryData.lon = payload.readInt32LE(8) / 1e7; // Longitude starts at byte 8
+        }
+        
+        // ID 74: VFR_HUD (Barometer Altitude & Ground Speed for Desk Testing)
+        if (packet.header.msgid === 74 && payload.length >= 16) {
+            telemetryData.speed = payload.readFloatLE(4); // Groundspeed starts at byte 4
+            telemetryData.alt = payload.readFloatLE(12);  // Barometer Alt starts at byte 12
+        }
+        
+        // ID 1: SYS_STATUS (Power Plant Diagnostics)
+        if (packet.header.msgid === 1 && payload.length >= 19) {
+            telemetryData.voltage = payload.readUInt16LE(14) / 1000; // Voltage at byte 14
+            telemetryData.battery = payload.readInt8(18);            // Battery % at byte 18
+        }
+
+        // ID 0: HEARTBEAT (System Status & Flight Mode)
+        if (packet.header.msgid === 0 && payload.length >= 8) {
+            const systemStatus = payload.readUInt8(7);
+            const customMode = payload.readUInt32LE(0);
+            
+            telemetryData.status = systemStatus === 4 ? 'ACTIVE' : 'STANDBY';
+            
+            // Map common ArduCopter modes (Expand as needed)
+            const modes = { 0: 'STABILIZE', 4: 'GUIDED', 5: 'LOITER', 6: 'RTL', 9: 'LAND' };
+            if (modes[customMode]) {
+                 telemetryData.mode = modes[customMode];
+            }
+        }
+
+    } catch (err) {
+        // Silently catch payload reading errors caused by MAVLink V2 truncation
+        // This ensures the backend bridge never crashes during flight
+        console.warn("Skipped malformed packet ID:", packet.header.msgid);
     }
 
     // 4. Broadcast to all connected web clients
