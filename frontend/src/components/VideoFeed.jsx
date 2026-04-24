@@ -6,7 +6,6 @@ export default function VideoFeed() {
   
   // Tactical State Management
   const [feedMode, setFeedMode] = useState('rf'); // 'rf' or 'wifi'
-  // Defaulting to the known-good iPhone Hotspot IP
   const [ipUrl, setIpUrl] = useState('http://172.20.10.2:5000/'); 
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState(null);
@@ -25,7 +24,7 @@ export default function VideoFeed() {
       }
     } catch (err) {
       console.error("RF Stream Error:", err);
-      setError("NO RF SIGNAL: Check USB Receiver.");
+      setError("NO RF SIGNAL: Check Receiver.");
       setIsActive(false);
     }
   };
@@ -45,7 +44,7 @@ export default function VideoFeed() {
       startRFStream();
     } else {
       stopRFStream();
-      // MJPEG FIX: Force active immediately because continuous streams never fire 'onLoad'
+      // iFrame FIX: Force active immediately because continuous streams never fire 'onLoad'
       setError(null);
       setIsActive(true); 
     }
@@ -66,14 +65,16 @@ export default function VideoFeed() {
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${feedMode === 'rf' && isActive ? 'opacity-100 z-10' : 'opacity-0 z-[-1]'}`}
       />
 
-      {/* Mode 2: Native Wi-Fi (IP MJPEG) Feed */}
+      {/* Mode 2: Native Wi-Fi (IP MJPEG) Feed via iFrame Bypass */}
       {feedMode === 'wifi' && (
-        <img 
-          src={ipUrl} 
-          alt="Wi-Fi IP Stream"
-          onError={() => { setIsActive(false); setError("CONNECTION REFUSED"); }}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 z-0 ${isActive ? 'opacity-100' : 'opacity-0'}`}
-        />
+        <div className={`absolute inset-0 w-full h-full z-0 transition-opacity duration-500 ${isActive ? 'opacity-100' : 'opacity-0'}`}>
+          <iframe 
+            src={ipUrl} 
+            title="Pi Stream Bypass"
+            className="w-full h-full border-none object-cover pointer-events-none"
+            scrolling="no"
+          />
+        </div>
       )}
 
       {/* --- HUD OVERLAYS --- */}
@@ -109,7 +110,7 @@ export default function VideoFeed() {
       )}
 
       {/* --- TACTICAL CONFIGURATION MENU --- */}
-      <div className="absolute top-6 right-6 z-40 flex flex-col items-end gap-2">
+      <div className="absolute top-6 right-6 z-40 flex flex-col items-end gap-2 pointer-events-auto">
         
         {/* Toggle Config Button */}
         <button 
