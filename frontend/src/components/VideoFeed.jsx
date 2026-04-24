@@ -1,17 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, Wifi, RadioReceiver, Settings } from 'lucide-react';
+import { CameraOff, Wifi, RadioReceiver, Settings } from 'lucide-react';
 
 export default function VideoFeed() {
   const videoRef = useRef(null);
-  
-  // Tactical State Management
-  const [feedMode, setFeedMode] = useState('rf'); // 'rf' or 'wifi'
-  const [ipUrl, setIpUrl] = useState('http://192.168.1.100:8080/?action=stream');
+  const [feedMode, setFeedMode] = useState('rf'); 
+  const [ipUrl, setIpUrl] = useState('http://172.20.10.2:5000/');
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState(null);
   const [showConfig, setShowConfig] = useState(false);
 
-  // Function to ignite the RF (Webcam) stream
   const startRFStream = async () => {
     try {
       setError(null);
@@ -23,65 +20,56 @@ export default function VideoFeed() {
         setIsActive(true);
       }
     } catch (err) {
-      console.error("RF Stream Error:", err);
-      setError("NO RF SIGNAL: Check USB Receiver & Permissions.");
+      setError("NO RF SIGNAL: Check USB Receiver.");
       setIsActive(false);
     }
   };
 
-  // Function to kill the RF stream
   const stopRFStream = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const tracks = videoRef.current.srcObject.getTracks();
       tracks.forEach(track => track.stop());
       videoRef.current.srcObject = null;
     }
-    setIsActive(false);
   };
 
-  // Handle switching modes
+  // THE FIX: Immediately set active when switching to Wi-Fi mode
   useEffect(() => {
     if (feedMode === 'rf') {
       startRFStream();
     } else {
       stopRFStream();
-      // Wi-Fi mode starts 'inactive' until the image successfully loads
       setError(null);
+      setIsActive(true); // Force the UI overlays to show
     }
-
     return () => stopRFStream();
-  }, [feedMode]);
+  }, [feedMode, ipUrl]);
 
   return (
     <div className="relative w-full h-full bg-slate-950 rounded-[2rem] overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center group">
       
-      {/* --- THE FEED RENDERERS --- */}
-      
-      {/* Mode 1: RF (Webcam) Feed */}
+      {/* Mode 1: RF Feed */}
       <video 
         ref={videoRef}
         autoPlay 
         playsInline 
         muted 
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${feedMode === 'rf' && isActive ? 'opacity-100' : 'opacity-0 z-[-1]'}`}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${feedMode === 'rf' && isActive ? 'opacity-100 z-10' : 'opacity-0 z-[-1]'}`}
       />
 
-      {/* Mode 2: Wi-Fi (IP MJPEG) Feed */}
+      {/* Mode 2: Wi-Fi Feed (THE FIX: Removed onLoad dependency) */}
       {feedMode === 'wifi' && (
         <img 
           src={ipUrl} 
           alt="Wi-Fi IP Stream"
-          onLoad={() => { setIsActive(true); setError(null); }}
-          onError={() => { setIsActive(false); setError("CONNECTION REFUSED: Check Pi IP Address."); }}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
+          onError={() => { setIsActive(false); setError("CONNECTION REFUSED"); }}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 z-0 ${isActive ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
 
-      {/* --- HUD OVERLAYS --- */}
-
-      {/* Crosshair Overlay */}
+      {/* HUD Overlays */}
       {isActive && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30 z-20">
           <div className="w-1/2 h-1/2 border border-white rounded-full flex items-center justify-center">
              <div className="w-4 h-px bg-white"></div>
              <div className="h-4 w-px bg-white absolute"></div>
@@ -89,7 +77,6 @@ export default function VideoFeed() {
         </div>
       )}
 
-      {/* Status Indicators (Top Left) */}
       {isActive && (
         <div className="absolute top-6 left-6 flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 z-30">
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
@@ -99,7 +86,6 @@ export default function VideoFeed() {
         </div>
       )}
 
-      {/* Error / No Signal State */}
       {!isActive && (
         <div className="absolute flex flex-col items-center text-slate-500 z-10">
           <CameraOff size={48} className="mb-4 opacity-50" />
@@ -109,51 +95,41 @@ export default function VideoFeed() {
         </div>
       )}
 
-      {/* --- TACTICAL CONFIGURATION MENU (Top Right) --- */}
+      {/* Tactical Configuration Menu */}
       <div className="absolute top-6 right-6 z-30 flex flex-col items-end gap-2">
-        
-        {/* Toggle Config Button */}
         <button 
           onClick={() => setShowConfig(!showConfig)}
-          className="bg-slate-900/80 backdrop-blur-md p-2 rounded-xl border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all shadow-lg"
+          className="bg-slate-900/80 backdrop-blur-md p-2 rounded-xl border border-slate-700 text-slate-400 hover:text-white transition-all shadow-lg"
         >
           <Settings size={20} />
         </button>
 
-        {/* Config Panel */}
         {showConfig && (
-          <div className="bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl border border-slate-700 shadow-2xl w-64 animate-in fade-in slide-in-from-top-4">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Video Source Matrix</p>
-            
-            {/* Mode Selectors */}
+          <div className="bg-slate-900/90 backdrop-blur-xl p-4 rounded-2xl border border-slate-700 shadow-2xl w-64">
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-3">Video Matrix</p>
             <div className="flex gap-2 mb-4">
               <button 
                 onClick={() => setFeedMode('rf')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold tracking-wider transition-all ${feedMode === 'rf' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-slate-800 text-slate-500 border border-transparent hover:bg-slate-700'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${feedMode === 'rf' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50' : 'bg-slate-800 text-slate-500 border border-transparent'}`}
               >
                 <RadioReceiver size={14} /> RF
               </button>
               <button 
                 onClick={() => setFeedMode('wifi')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold tracking-wider transition-all ${feedMode === 'wifi' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50' : 'bg-slate-800 text-slate-500 border border-transparent hover:bg-slate-700'}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${feedMode === 'wifi' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50' : 'bg-slate-800 text-slate-500 border border-transparent'}`}
               >
                 <Wifi size={14} /> IP
               </button>
             </div>
 
-            {/* IP Address Input (Only shows in Wi-Fi mode) */}
             {feedMode === 'wifi' && (
               <div className="space-y-2">
-                <label className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Raspberry Pi Stream URL</label>
+                <label className="text-[9px] text-slate-500 uppercase font-bold">Pi URL</label>
                 <input 
                   type="text" 
                   value={ipUrl}
-                  onChange={(e) => {
-                    setIpUrl(e.target.value);
-                    setIsActive(false); // Force reload attempt
-                  }}
+                  onChange={(e) => setIpUrl(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-blue-400 focus:outline-none focus:border-blue-500"
-                  placeholder="http://192.168.x.x:8080/stream"
                 />
               </div>
             )}
@@ -161,7 +137,6 @@ export default function VideoFeed() {
         )}
       </div>
       
-      {/* Faux CRT Scanline Effect Overlay */}
       <div className="absolute inset-0 pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSJ0cmFuc3BhcmVudCIvPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSIxIiBmaWxsPSJyZ2JhKDAsIDAsIDAsIDAuMSkiLz4KPC9zdmc+')] opacity-50 z-20"></div>
     </div>
   );
